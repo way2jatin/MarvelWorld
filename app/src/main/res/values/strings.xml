@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">MarvelWorld</string>
+    <string name="title_activity_main">MainActivity</string>
+    <string name="category_characters">CHARACTERS</string>
+    <string name="category_comics">COMICS</string>
+    <string name="dealpool_description">My favourite marvel (Anti)hero is DeadPool. Well, I personally like DC more than Marvel until last year. He is not about saving the world which is what I admire about a character. I always end up praising the villain rather than the hero. Also he gives no f***s whatsoever. A carefree attitude of him is just amazing.</string>
+    <string name="loading_message">Please Wait</string>
+    <string name="base_url">https://gateway.marvel.com:443/v1/public/</string>
+    <string name="no_result">No Results found.</string>
+</resources>
