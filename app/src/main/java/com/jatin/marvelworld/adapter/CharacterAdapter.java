@@ -24,27 +24,46 @@ import butterknife.ButterKnife;
  * Created by uw on 13/6/17.
  */
 
-public class CharacterAdapter extends RecyclerView.Adapter<CharacterAdapter.ViewHolder> {
+public class CharacterAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
+    private final int VIEW_CHARACTER = 0;
+    private final int VIEW_PROGRESS = 1;
     List<Result> characterList = new ArrayList<>();
+    private OnLoadMoreListener onLoadMoreListener;
 
     public CharacterAdapter(List<Result> characterList) {
         this.characterList = characterList;
     }
 
     @Override
-    public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.list_item, parent, false);
-        return new ViewHolder(parent.getContext(), v);
+    public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+
+        if (viewType == VIEW_CHARACTER){
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.list_item, parent, false);
+            return new CharacterViewHolder(parent.getContext(), v);
+        }
+        else {
+            View itemView = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_progress, parent, false);
+
+            return new ProgressViewHolder(itemView);
+        }
     }
 
     @Override
-    public void onBindViewHolder(ViewHolder holder, int position) {
-        final Result result = characterList.get(position);
-        holder.name.setText(result.getName());
-        holder.poster.setDefaultImageResId(R.drawable.marvellogo);
-        holder.poster.setImageUrl(result.getThumbnail().getPath()+"/standard_fantastic.jpg", AppController.getInstance().getImageLoader());
+    public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+        if (holder instanceof CharacterViewHolder){
+            CharacterViewHolder viewHolder = (CharacterViewHolder) holder;
+            final Result result = characterList.get(position);
+            viewHolder.name.setText(result.getName());
+            viewHolder.poster.setDefaultImageResId(R.drawable.marvellogo);
+            viewHolder.poster.setImageUrl(result.getThumbnail().getPath()+"/standard_fantastic.jpg", AppController.getInstance().getImageLoader());
+        }
+    }
 
+    @Override
+    public int getItemViewType(int position) {
+        return characterList.get(position) != null ? VIEW_CHARACTER : VIEW_PROGRESS;
     }
 
     @Override
@@ -52,7 +71,26 @@ public class CharacterAdapter extends RecyclerView.Adapter<CharacterAdapter.View
         return characterList.size();
     }
 
-    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+    public int getCharacterItemsCount() {
+        if (isProgressViewVisible())
+            return characterList.size() - 1;
+
+        return characterList.size();
+    }
+
+    public boolean isProgressViewVisible() {
+        return characterList.contains(null);
+    }
+
+    public void setOnLoadMoreListener(OnLoadMoreListener onLoadMoreListener){
+        this.onLoadMoreListener = onLoadMoreListener;
+    }
+    public interface OnLoadMoreListener {
+        void onLoadMore();
+    }
+
+
+    public class CharacterViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
 
         public final Context context;
         @BindView(R.id.poster)
@@ -60,7 +98,7 @@ public class CharacterAdapter extends RecyclerView.Adapter<CharacterAdapter.View
         @BindView(R.id.name)
         TextView name;
 
-        public ViewHolder(final Context context, View v) {
+        public CharacterViewHolder(final Context context, View v) {
             super(v);
             ButterKnife.bind(this, v);
             this.context = context;
@@ -77,6 +115,12 @@ public class CharacterAdapter extends RecyclerView.Adapter<CharacterAdapter.View
             mainIntent.putExtra("comics",charsDetails.getComics().getAvailable());
             mainIntent.putExtra("series",charsDetails.getSeries().getAvailable());
             context.startActivity(mainIntent);
+        }
+    }
+
+    public class ProgressViewHolder extends RecyclerView.ViewHolder {
+        public ProgressViewHolder(View itemView) {
+            super(itemView);
         }
     }
 }

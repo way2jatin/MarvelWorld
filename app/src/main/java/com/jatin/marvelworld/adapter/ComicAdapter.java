@@ -24,26 +24,44 @@ import butterknife.ButterKnife;
  * Created by uw on 13/6/17.
  */
 
-public class ComicAdapter extends RecyclerView.Adapter<ComicAdapter.ViewHolder> {
+public class ComicAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     List<Result> comicList = new ArrayList<>();
+    private static final int VIEW_PROGRESS = 1;
+    private static final int VIEW_COMIC = 0;
+    private OnLoadMoreListener onLoadMoreListener;
 
     public ComicAdapter(List<Result> comicList) {
         this.comicList = comicList;
     }
 
     @Override
-    public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.list_item, parent, false);
-        return new ViewHolder(parent.getContext(), v);
+    public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        if (viewType == VIEW_COMIC){
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.list_item, parent, false);
+            return new ComicViewHolder(parent.getContext(), v);
+        }
+        else {
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_progress, parent, false);
+            return new ProgressViewHolder(v);
+        }
+
     }
 
     @Override
-    public void onBindViewHolder(ViewHolder holder, int position) {
-        final Result result = comicList.get(position);
-        holder.name.setText(result.getTitle());
-        holder.poster.setDefaultImageResId(R.drawable.marvellogo);
-        holder.poster.setImageUrl(result.getThumbnail().getPath() + "/standard_fantastic.jpg", AppController.getInstance().getImageLoader());
+    public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+        if (holder instanceof ComicViewHolder){
+            ComicViewHolder viewHolder = (ComicViewHolder) holder;
+            final Result result = comicList.get(position);
+            viewHolder.name.setText(result.getTitle());
+            viewHolder.poster.setDefaultImageResId(R.drawable.marvellogo);
+            viewHolder.poster.setImageUrl(result.getThumbnail().getPath() + "/standard_fantastic.jpg", AppController.getInstance().getImageLoader());
+        }
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        return comicList.get(position) != null ? VIEW_COMIC : VIEW_PROGRESS;
     }
 
     @Override
@@ -51,14 +69,32 @@ public class ComicAdapter extends RecyclerView.Adapter<ComicAdapter.ViewHolder> 
         return comicList.size();
     }
 
-    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+    public int getCharacterItemsCount() {
+        if (isProgressViewVisible())
+            return comicList.size() - 1;
+
+        return comicList.size();
+    }
+
+    public boolean isProgressViewVisible() {
+        return comicList.contains(null);
+    }
+
+    public void setOnLoadMoreListener(OnLoadMoreListener onLoadMoreListener){
+        this.onLoadMoreListener = onLoadMoreListener;
+    }
+    public interface OnLoadMoreListener {
+        void onLoadMore();
+    }
+
+    public class ComicViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
         public final Context context;
         @BindView(R.id.poster)
         NetworkImageView poster;
         @BindView(R.id.name)
         TextView name;
 
-        public ViewHolder(final Context context, View v) {
+        public ComicViewHolder(final Context context, View v) {
             super(v);
             ButterKnife.bind(this, v);
             this.context = context;
@@ -77,6 +113,12 @@ public class ComicAdapter extends RecyclerView.Adapter<ComicAdapter.ViewHolder> 
             mainIntent.putExtra("eBookPrice",comicDetails.getPrices().get(1).getPrice());
             mainIntent.putParcelableArrayListExtra("itemsItem",comicDetails.getCreators().getItems());
             context.startActivity(mainIntent);
+        }
+    }
+
+    public class ProgressViewHolder extends RecyclerView.ViewHolder {
+        public ProgressViewHolder(View itemView) {
+            super(itemView);
         }
     }
 }

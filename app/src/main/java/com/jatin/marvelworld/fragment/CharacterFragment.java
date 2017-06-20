@@ -24,14 +24,13 @@ import com.jatin.marvelworld.BuildConfig;
 import com.jatin.marvelworld.R;
 import com.jatin.marvelworld.activity.SearchActivity;
 import com.jatin.marvelworld.adapter.CharacterAdapter;
-import com.jatin.marvelworld.db.MarvelDb;
 import com.jatin.marvelworld.listener.APIResponseListener;
+import com.jatin.marvelworld.listener.EndlessRecyclerOnScrollListener;
 import com.jatin.marvelworld.model.chars.CharacterResponse;
 import com.jatin.marvelworld.model.chars.Result;
 import com.jatin.marvelworld.util.APIHelper;
 import com.jatin.marvelworld.util.Log;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -78,6 +77,18 @@ public class CharacterFragment extends BaseFragment {
         GridLayoutManager gridLayoutManager = new GridLayoutManager(getActivity(), 2, GridLayoutManager.VERTICAL, false);
         recyclerView.setLayoutManager(gridLayoutManager);
 
+        gridLayoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+            @Override
+            public int getSpanSize(int position) {
+                if (adapter.getItemViewType(position) == 0){
+                    return 1;
+                }
+                else {
+                    return 2;
+                }
+            }
+        });
+
         mapper = new ObjectMapper();
 
         adapter = new CharacterAdapter(characterList);
@@ -102,23 +113,30 @@ public class CharacterFragment extends BaseFragment {
             }
         });
 
-        if (MarvelDb.getInstance(getActivity().getApplicationContext()).hasCharacters() && !hasData(search)){
-            try {
-                characterList.addAll(MarvelDb.getInstance(getActivity().getApplicationContext()).retrieveCharacters().getData().getResults());
-                adapter.notifyDataSetChanged();
-                progressBar.setVisibility(View.INVISIBLE);
-            } catch (IOException e) {
-                Log.e("Exception", e.getMessage(), e);
+//        if (MarvelDb.getInstance(getActivity().getApplicationContext()).hasCharacters() && !hasData(search)){
+//            try {
+//                characterList.addAll(MarvelDb.getInstance(getActivity().getApplicationContext()).retrieveCharacters().getData().getResults());
+//                adapter.notifyDataSetChanged();
+//                progressBar.setVisibility(View.INVISIBLE);
+//            } catch (IOException e) {
+//                Log.e("Exception", e.getMessage(), e);
+//            }
+//        } else {
+            getAllCharacters(0);
+//        }
+
+        recyclerView.addOnScrollListener(new EndlessRecyclerOnScrollListener(gridLayoutManager) {
+            @Override
+            public void onLoadMore(int current_page) {
+                getAllCharacters(adapter.getCharacterItemsCount());
             }
-        } else {
-            getAllCharacters();
-        }
+        });
 
         return view;
     }
 
 
-    private void getAllCharacters() {
+    private void getAllCharacters(int offset) {
         APIHelper apiHelper = new APIHelper(getActivity().getApplicationContext());
 
         long timeStamp = System.currentTimeMillis();
@@ -129,7 +147,11 @@ public class CharacterFragment extends BaseFragment {
             apiHelper.callJsonWsGet(getResources().getString(R.string.base_url) + "characters?nameStartsWith="+search+"&orderBy=name&limit=20&ts="+timeStampString+"&apikey="+PUBLIC_API_KEY+"&hash="+md5ApiKey,null,characterListener,false);
         }
         else {
-            apiHelper.callJsonWsGet(getResources().getString(R.string.base_url) + "characters?orderBy=name&limit=20&ts="+timeStampString+"&apikey="+PUBLIC_API_KEY+"&hash="+md5ApiKey,null,characterListener,false);
+            if (offset > 0){
+                characterList.add(null);
+                adapter.notifyDataSetChanged();
+            }
+            apiHelper.callJsonWsGet(getResources().getString(R.string.base_url) + "characters?orderBy=name&limit=20&offset="+offset+"&ts="+timeStampString+"&apikey="+PUBLIC_API_KEY+"&hash="+md5ApiKey,null,characterListener,false);
         }
     }
 
@@ -137,13 +159,19 @@ public class CharacterFragment extends BaseFragment {
         @Override
         public void handleResponse(String response) {
             try{
-                characterList.clear();
                 CharacterResponse characterResponse = mapper.readValue(response,CharacterResponse.class);
                 if (characterResponse.getData().getResults().size() ==0){
                     emptyText.setVisibility(View.VISIBLE);
                 }
-                if (!hasData(search)){
-                    MarvelDb.getInstance(getActivity().getApplicationContext()).insertJSONStore("characters",response);
+//                if (!hasData(search)){
+//                    MarvelDb.getInstance(getActivity().getApplicationContext()).insertJSONStore("characters",response);
+//                }
+
+                if (adapter.getCharacterItemsCount() == 0){
+                    characterList.clear();
+                }
+                else {
+                    characterList.remove(characterList.size()-1);
                 }
                 characterList.addAll(characterResponse.getData().getResults());
                 adapter.notifyDataSetChanged();

@@ -26,13 +26,12 @@ import com.jatin.marvelworld.BuildConfig;
 import com.jatin.marvelworld.R;
 import com.jatin.marvelworld.activity.SearchActivity;
 import com.jatin.marvelworld.adapter.ComicAdapter;
-import com.jatin.marvelworld.db.MarvelDb;
 import com.jatin.marvelworld.listener.APIResponseListener;
+import com.jatin.marvelworld.listener.OnComicsScrollListener;
 import com.jatin.marvelworld.model.comics.ComicResponse;
 import com.jatin.marvelworld.model.comics.Result;
 import com.jatin.marvelworld.util.APIHelper;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -104,24 +103,43 @@ public class ComicFragment extends BaseFragment {
             }
         });
 
-        if (MarvelDb.getInstance(getActivity().getApplicationContext()).hasComics() && !hasData(search)){
-            try {
-                comicList.addAll(MarvelDb.getInstance(getActivity().getApplicationContext()).retrieveComics().getData().getResults());
-                adapter.notifyDataSetChanged();
-                progressBar.setVisibility(View.INVISIBLE);
-            } catch (IOException e) {
-                Log.e("Exception",e.getMessage(),e);
+//        if (MarvelDb.getInstance(getActivity().getApplicationContext()).hasComics() && !hasData(search)){
+//            try {
+//                comicList.addAll(MarvelDb.getInstance(getActivity().getApplicationContext()).retrieveComics().getData().getResults());
+//                adapter.notifyDataSetChanged();
+//                progressBar.setVisibility(View.INVISIBLE);
+//            } catch (IOException e) {
+//                Log.e("Exception",e.getMessage(),e);
+//            }
+//        }
+//        else {
+            getAllComics(0);
+//        }
+
+        gridLayoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+            @Override
+            public int getSpanSize(int position) {
+                if (adapter.getItemViewType(position) == 0){
+                    return 1;
+                }
+                else {
+                    return 2;
+                }
             }
-        }
-        else {
-            getAllComics();
-        }
+        });
+
+        recyclerView.addOnScrollListener(new OnComicsScrollListener(gridLayoutManager) {
+            @Override
+            public void onLoadMore(int current_page) {
+                getAllComics(adapter.getCharacterItemsCount());
+            }
+        });
 
         return view;
     }
 
 
-    private void getAllComics() {
+    private void getAllComics(int offset) {
         APIHelper apiHelper = new APIHelper(getActivity().getApplicationContext());
         long timeStamp = System.currentTimeMillis();
         String timeStampString = Long.toString(timeStamp);
@@ -132,23 +150,31 @@ public class ComicFragment extends BaseFragment {
 
         }
         else {
-            apiHelper.callJsonWsGet(getResources().getString(R.string.base_url) + "comics?formatType=comic&noVariants=true&orderBy=title&limit=20&ts="+timeStampString+"&apikey="+PUBLIC_API_KEY+"&hash="+md5ApiKey,null,comicListener,false);
+            if (offset > 0){
+                comicList.add(null);
+                adapter.notifyDataSetChanged();
+            }
+            apiHelper.callJsonWsGet(getResources().getString(R.string.base_url) + "comics?formatType=comic&noVariants=true&orderBy=title&limit=20&offset="+offset+"&ts="+timeStampString+"&apikey="+PUBLIC_API_KEY+"&hash="+md5ApiKey,null,comicListener,false);
         }
-
     }
 
     private APIResponseListener comicListener = new APIResponseListener() {
         @Override
         public void handleResponse(String response) {
             try {
-                comicList.clear();
                 mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
                 ComicResponse comicResponse = mapper.readValue(response,ComicResponse.class);
                 if (comicResponse.getData().getResults().size() ==0){
                     emptyText.setVisibility(View.VISIBLE);
                 }
-                if (!hasData(search)){
-                    MarvelDb.getInstance(getActivity().getApplicationContext()).insertJSONStore("comics",response);
+//                if (!hasData(search)){
+//                    MarvelDb.getInstance(getActivity().getApplicationContext()).insertJSONStore("comics",response);
+//                }
+                if (adapter.getCharacterItemsCount() == 0){
+                    comicList.clear();
+                }
+                else {
+                    comicList.remove(comicList.size()-1);
                 }
                 comicList.addAll(comicResponse.getData().getResults());
                 adapter.notifyDataSetChanged();
